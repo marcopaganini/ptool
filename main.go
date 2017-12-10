@@ -7,6 +7,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"github.com/marcopaganini/logger"
@@ -34,10 +35,12 @@ var (
 func main() {
 	var (
 		optKillOrphan bool
+		optTimeout    int
 		optVerbose    bool
 	)
 
 	flag.BoolVar(&optKillOrphan, "kill-orphan", false, "Kill the program if parent becomes init.")
+	flag.IntVar(&optTimeout, "timeout", 0, "Program execution timeout.")
 	flag.BoolVar(&optVerbose, "verbose", false, "Verbose log messages.")
 
 	// Custom usage.
@@ -59,8 +62,22 @@ func main() {
 	}
 
 	cmdline := flag.Args()
-	cmd := exec.Command(cmdline[0], cmdline[1:]...)
 
+	// Create a background context. Add a timeout if specified.
+	var (
+		ctx    context.Context
+		cancel context.CancelFunc
+	)
+
+	ctx = context.Background()
+	if optTimeout > 0 {
+		ctx, cancel = context.WithTimeout(ctx, time.Duration(optTimeout)*time.Second)
+		defer cancel()
+	}
+
+	cmd := exec.CommandContext(ctx, cmdline[0], cmdline[1:]...)
+
+	// Inherit our std pipes.
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -75,7 +92,7 @@ func main() {
 	setSignals(cmd)
 	defer resetSignals()
 
-	log.Verbosef(1, "Executed command: %q\n", strings.Join(cmdline, " "))
+	log.Verbosef(1, "Executing command: %q\n", strings.Join(cmdline, " "))
 
 	var (
 		errproc  error
@@ -105,14 +122,14 @@ func main() {
 
 // setSignals traps common signals and re-sends them to the child process.
 func setSignals(cmd *exec.Cmd) {
-	// This channel has to be large enough to accomodate
-	// simultaneous signals.
+	// This channel has to be large enough to accomodate simultaneous signals.
 	sigs := make(chan os.Signal, 1)
 
 	signal.Notify(sigs, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGUSR1, syscall.SIGUSR2)
 
 	go func() {
 		sig := <-sigs
+		//log.Verbosef(1, "Received signal: %s\n", sig.String())
 		cmd.Process.Signal(sig)
 	}()
 }
