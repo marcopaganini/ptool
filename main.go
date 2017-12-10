@@ -52,7 +52,7 @@ func main() {
 
 	flag.Parse()
 	if len(flag.Args()) == 0 {
-		fmt.Fprintf(os.Stderr, "Error: No command to execute")
+		fmt.Fprintf(os.Stderr, "Error: No command to execute\n")
 		flag.Usage()
 		os.Exit(2)
 	}
