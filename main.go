@@ -40,7 +40,7 @@ func main() {
 	)
 
 	flag.BoolVar(&optKillOrphan, "kill-orphan", false, "Kill the program if parent becomes init.")
-	flag.IntVar(&optTimeout, "timeout", 0, "Program execution timeout.")
+	flag.IntVar(&optTimeout, "timeout", 0, "Program execution timeout (in seconds).")
 	flag.BoolVar(&optVerbose, "verbose", false, "Verbose log messages.")
 
 	// Custom usage.
