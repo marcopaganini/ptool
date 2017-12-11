@@ -35,11 +35,15 @@ var (
 func main() {
 	var (
 		optKillOrphan bool
+		optShell      bool
+		optShellCmd   string
 		optTimeout    int
 		optVerbose    bool
 	)
 
 	flag.BoolVar(&optKillOrphan, "kill-orphan", false, "Kill the program if parent becomes init.")
+	flag.BoolVar(&optShell, "shell", false, "Use shell to execute command.")
+	flag.StringVar(&optShellCmd, "shell-command", "/bin/bash", "Path to shell binary to use.")
 	flag.IntVar(&optTimeout, "timeout", 0, "Program execution timeout (in seconds).")
 	flag.BoolVar(&optVerbose, "verbose", false, "Verbose log messages.")
 
@@ -62,6 +66,9 @@ func main() {
 	}
 
 	cmdline := flag.Args()
+	if optShell {
+		cmdline = append([]string{optShellCmd, "-c"}, strings.Join(flag.Args(), " "))
+	}
 
 	// Create a background context. Add a timeout if specified.
 	var (
@@ -92,7 +99,7 @@ func main() {
 	setSignals(cmd)
 	defer resetSignals()
 
-	log.Verbosef(1, "Executing command: %q\n", strings.Join(cmdline, " "))
+	log.Verbosef(1, "Executing command: %q\n", cmdline)
 
 	var (
 		errproc  error
