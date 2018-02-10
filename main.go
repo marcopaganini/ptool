@@ -35,6 +35,7 @@ var (
 func main() {
 	var (
 		optKillOrphan bool
+		optLogFile    string
 		optShell      bool
 		optShellCmd   string
 		optTimeout    int
@@ -42,6 +43,7 @@ func main() {
 	)
 
 	flag.BoolVar(&optKillOrphan, "kill-orphan", false, "Kill the program if parent becomes init.")
+	flag.StringVar(&optLogFile, "logfile", "", "Also write log messages to this file.")
 	flag.BoolVar(&optShell, "shell", false, "Use shell to execute command.")
 	flag.StringVar(&optShellCmd, "shell-command", "/bin/bash", "Path to shell binary to use.")
 	flag.IntVar(&optTimeout, "timeout", 0, "Program execution timeout (in seconds).")
@@ -59,6 +61,15 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Error: No command to execute\n")
 		flag.Usage()
 		os.Exit(2)
+	}
+
+	if optLogFile != "" {
+		logw, err := os.Create(optLogFile)
+		if err != nil {
+			log.Fatalf("Error creating log file %q: %v\n", optLogFile, err)
+		}
+		defer logw.Close()
+		log.SetMirrorOutput(logw)
 	}
 
 	if optVerbose {
@@ -110,8 +121,12 @@ func main() {
 		// If we became an orphan (that is, our parent became init), we
 		// summarily kill the child and exit.
 		if orphaned {
-			err := cmd.Process.Kill()
-			if err != nil {
+			log.Verbosef(1, "Init (pid=1) is our father. killing our process group\n")
+			if err := syscall.Kill(0, syscall.SIGTERM); err != nil {
+				log.Fatal(err)
+			}
+			time.Sleep(2 * time.Second)
+			if err := syscall.Kill(0, syscall.SIGKILL); err != nil {
 				log.Fatal(err)
 			}
 			os.Exit(1)
